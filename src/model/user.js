@@ -1,7 +1,13 @@
 const mongoose = require("mongoose");
 const validator = require("validator");
-// create user model.
-const User = mongoose.model("user", {
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const errorMessage = {
+  invalidEmail: "invalid email address",
+  invalidPassword: "password can not contain password",
+  invalidAge: "age  must  be positive",
+};
+const userSchema = mongoose.Schema({
   name: {
     type: String,
     trim: true,
@@ -11,11 +17,11 @@ const User = mongoose.model("user", {
     required: true,
     trim: true,
     lowercase: true,
-
+    unique: true,
     validate(value) {
       // check if  the  email is  valid or  not
       if (!validator.isEmail(value)) {
-        throw new Error("please   enter  valid email");
+        throw new Error(errorMessage.invalidEmail);
       }
     },
   },
@@ -23,7 +29,7 @@ const User = mongoose.model("user", {
     type: Number,
     validate(value) {
       if (value < 1) {
-        throw new Error("age  must  be positive ");
+        throw new Error(errorMessage.invalidAge);
       }
     },
   },
@@ -34,9 +40,63 @@ const User = mongoose.model("user", {
     trim: true,
     validate(value) {
       if (value.trim().toLowerCase().includes("password")) {
-        throw new Error("password can not contain password");
+        throw new Error(errorMessage.invalidPassword);
       }
     },
   },
+  tokens: [
+    {
+      token: {
+        type: String,
+        required: true,
+      },
+    },
+  ],
 });
+// generate tokens.
+userSchema.methods.generateAuthToken = async function () {
+  const user = this;
+  const token = jwt.sign(
+    { _id: user._id.toString() },
+    "thisismernstacktaskmanagerapp"
+  );
+  user.tokens = user.tokens.concat({ token });
+  await user.save();
+  return token;
+};
+// creating userCredentials.
+userSchema.statics.findByCredentials = async (email, password) => {
+  // check if user is found  and search  it based on email adress.
+  const user = await User.findOne({ email });
+  //  check if user is found.
+  if (!user) {
+    throw new Error("Unable to login. User not found.");
+  }
+
+  // If a user is found, check if the provided password matches.
+  const isMatch = await bcrypt.compare(password, user.password);
+
+  if (!isMatch) {
+    throw new Error("Unable to login. Incorrect password.");
+  }
+
+  return user;
+};
+
+// pre- middleware.
+userSchema.pre("save", async function (next) {
+  const user = this;
+  // check if password is modified.
+  if (user.isModified("password")) {
+    try {
+      user.password = await bcrypt.hash(user.password, 8);
+    } catch (error) {
+      return next(error); // Pass the error to the next middleware
+    }
+  }
+
+  next();
+});
+
+const User = mongoose.model("user", userSchema);
 module.exports = User;

@@ -42,21 +42,23 @@ router.get("/tasks/:id", async (req, res) => {
 router.patch("/tasks/:id", async (req, res) => {
   const allowedUpdates = ["description", "completed"];
   const updates = Object.keys(req.body);
-  const isValid = updates.every((update) => {
-    allowedUpdates.includes(update);
-  });
+  const isValid = updates.every((update) => allowedUpdates.includes(update));
   if (!isValid) {
     return res.status(400).json({ error: "error  while updating task" });
   }
 
   try {
-    const taskUpdate = await Task.findByIdAndUpdate(req.body.id, req.body, {
-      new: true,
-      runValidators: true,
-    });
+    // const taskUpdate = await Task.findByIdAndUpdate(req.params.id, req.body, {
+    //   new: true,
+    //   runValidators: true,
+    // });
+    const taskUpdate = await Task.findById(req.params.id);
     if (!taskUpdate) {
       return res.status(404).json({ error: "task isn't  found" });
     }
+    updates.forEach((update) => (taskUpdate[update] = req.body[update]));
+    await taskUpdate.save();
+
     res.json({ taskUpdate });
   } catch {
     res.status(500).json({ error: "internal server error" });
