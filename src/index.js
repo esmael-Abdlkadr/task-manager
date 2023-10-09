@@ -7,7 +7,6 @@ const app = express();
 const bcrypt = require("bcrypt");
 const port = process.env.PORT || 3000;
 // a middleware  parse incoming  JSON data  from HTTP request  in to  JS object.
-
 app.use(express.json());
 
 app.use(userRouter);

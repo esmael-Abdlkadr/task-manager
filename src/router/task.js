@@ -1,22 +1,28 @@
 const Task = require("../model/task");
 const express = require("express");
+const auth = require("../middleware/auth");
 const router = new express.Router();
 
 // create tasks.
-router.post("/tasks", async (req, res) => {
+router.post("/tasks", auth, async (req, res) => {
   try {
-    const newTask = new Task(req.body);
+    // const newTask = new Task(req.body);
+    const task = new Task({
+      ...req.body,
+      owner: req.user._id,
+    });
     // save task to DB.
-    const saveTask = await newTask.save();
-    res.status(201).json({ saveTask });
+    await task.save();
+    res.status(201).json(task);
   } catch (err) {
+    console.error(err);
     res.status(400).json({ error: "can't  create  new task" });
   }
 });
 // fetching  all tasks.
-router.get("/tasks", async (req, res) => {
+router.get("/tasks", auth, async (req, res) => {
   try {
-    const tasks = await Task.find({});
+    const tasks = await Task.find({ owner: req.user._id });
     if (!tasks) {
       return res.status(500).json({ error: "no task is found" });
     }
@@ -26,15 +32,17 @@ router.get("/tasks", async (req, res) => {
   }
 });
 // fetch  single task
-router.get("/tasks/:id", async (req, res) => {
+router.get("/tasks/:id", auth, async (req, res) => {
   try {
-    const taskId = req.params.id;
-    const task = await Task.findById(taskId);
+    const _id = req.params.id;
+    // const task = await Task.findById(taskId);
+    const task = await Task.findOne({ _id, owner: req.user._id });
     if (!task) {
       return res.status(404).json({ error: "task isn't found" });
     }
     res.json({ task });
-  } catch {
+  } catch (error) {
+    console.log(error);
     res.status(500).json({ error: "internal  server error" });
   }
 });

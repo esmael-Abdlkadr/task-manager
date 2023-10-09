@@ -53,6 +53,26 @@ const userSchema = mongoose.Schema({
     },
   ],
 });
+// virtual  property.
+userSchema.virtual("task", {
+  ref: "Task",
+  // localField=where local data is stored
+  localField: "_id",
+  // forigntField=is name of field  on the  task  ,  that  used  to  create relationship
+  foreignField: "owner",
+});
+
+// get specific  information.
+// NB. toJSON= run always evenif we don't explicitly  call it.
+userSchema.methods.toJSON = async function () {
+  const user = this;
+  // get row object that contain user data.
+  const userObject = user.toObject();
+  // delete  password and tokens from the object.
+  delete userObject.password;
+  delete userObject.tokens;
+  return userObject;
+};
 // generate tokens.
 userSchema.methods.generateAuthToken = async function () {
   const user = this;
