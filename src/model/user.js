@@ -2,57 +2,63 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const Task = require("./task");
 const errorMessage = {
   invalidEmail: "invalid email address",
   invalidPassword: "password can not contain password",
   invalidAge: "age  must  be positive",
 };
-const userSchema = mongoose.Schema({
-  name: {
-    type: String,
-    trim: true,
-  },
-  email: {
-    type: String,
-    required: true,
-    trim: true,
-    lowercase: true,
-    unique: true,
-    validate(value) {
-      // check if  the  email is  valid or  not
-      if (!validator.isEmail(value)) {
-        throw new Error(errorMessage.invalidEmail);
-      }
+const userSchema = mongoose.Schema(
+  {
+    name: {
+      type: String,
+      trim: true,
     },
-  },
-  age: {
-    type: Number,
-    validate(value) {
-      if (value < 1) {
-        throw new Error(errorMessage.invalidAge);
-      }
-    },
-  },
-  password: {
-    type: String,
-    required: true,
-    minlength: 7,
-    trim: true,
-    validate(value) {
-      if (value.trim().toLowerCase().includes("password")) {
-        throw new Error(errorMessage.invalidPassword);
-      }
-    },
-  },
-  tokens: [
-    {
-      token: {
-        type: String,
-        required: true,
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      unique: true,
+      validate(value) {
+        // check if  the  email is  valid or  not
+        if (!validator.isEmail(value)) {
+          throw new Error(errorMessage.invalidEmail);
+        }
       },
     },
-  ],
-});
+    age: {
+      type: Number,
+      validate(value) {
+        if (value < 1) {
+          throw new Error(errorMessage.invalidAge);
+        }
+      },
+    },
+    password: {
+      type: String,
+      required: true,
+      minlength: 7,
+      trim: true,
+      validate(value) {
+        if (value.trim().toLowerCase().includes("password")) {
+          throw new Error(errorMessage.invalidPassword);
+        }
+      },
+    },
+    tokens: [
+      {
+        token: {
+          type: String,
+          required: true,
+        },
+      },
+    ],
+  },
+  {
+    timestamps: true,
+  }
+);
 // virtual  property.
 userSchema.virtual("task", {
   ref: "Task",
@@ -103,7 +109,7 @@ userSchema.statics.findByCredentials = async (email, password) => {
   return user;
 };
 
-// pre- middleware.
+// pre- middleware  hass the user password .
 userSchema.pre("save", async function (next) {
   const user = this;
   // check if password is modified.
@@ -117,6 +123,15 @@ userSchema.pre("save", async function (next) {
 
   next();
 });
+// Middleware that delete Task  when user delete their account.
+userSchema.pre("remove", async function (next) {
+  // this code access the current user.
+  const user = this;
+  const task = await Task.deleteMany({
+    owner: req.user._id,
+  });
 
+  next();
+});
 const User = mongoose.model("user", userSchema);
 module.exports = User;
